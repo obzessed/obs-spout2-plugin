@@ -14,6 +14,27 @@ include(compilerconfig)
 include(defaults)
 include(helpers)
 
+#include(cpm)
+#
+#CPMAddPackage(
+#	NAME Spout2SDK
+#	GIT_REPOSITORY https://github.com/leadedge/Spout2.git
+#	VERSION 2.007.017
+#	DOWNLOAD_ONLY YES
+#)
+#
+#if (Spout2SDK_ADDED)
+#	# Spout2 SDK has no CMake support, so we create our own target
+#	FILE(GLOB Spout2SDK_sources ${Spout2SDK_SOURCE_DIR}/*.c)
+#	list(REMOVE_ITEM Spout2SDK_sources "${Spout2SDK_SOURCE_DIR}/lua.c" "${Spout2SDK_SOURCE_DIR}/luac.c")
+#	add_library(Spout2SDK STATIC ${Spout2SDK_sources})
+#
+#	target_include_directories(Spout2SDK
+#		PUBLIC
+#		$<BUILD_INTERFACE:${Spout2SDK_SOURCE_DIR}>
+#	)
+#endif()
+
 add_library(${CMAKE_PROJECT_NAME} MODULE)
 
 find_package(libobs REQUIRED)
