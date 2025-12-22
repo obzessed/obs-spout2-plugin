@@ -11,7 +11,7 @@
 #include <util/threading.h>
 #include "win-spout.h"
 
-#include "SpoutDX.h"
+#include <SpoutDX.h>
 
 struct spout_output {
 	spoutDX *sender;
@@ -30,7 +30,7 @@ void win_spout_output_destroy(void *data);
 
 bool init_spout(void *data)
 {
-	spout_output *context = (spout_output *)data;
+	auto *context = static_cast<spout_output *>(data);
 	// Enable for debugging spout:
 	// spoututils::SetSpoutLogLevel(spoututils::SPOUT_LOG_VERBOSE);
 	// spoututils::EnableSpoutLog();
@@ -53,13 +53,13 @@ static const char *win_spout_output_get_name(void *unused)
 
 static void win_spout_output_update(void *data, obs_data_t *settings)
 {
-	spout_output *context = (spout_output *)data;
+	auto *context = static_cast<spout_output *>(data);
 	context->senderName = obs_data_get_string(settings, "senderName");
 }
 
 static void *win_spout_output_create(obs_data_t *settings, obs_output_t *output)
 {
-	spout_output *context = (spout_output *)bzalloc(sizeof(spout_output));
+	auto *context = static_cast<spout_output *>(bzalloc(sizeof(spout_output)));
 	context->output = output;
 	context->senderName = obs_data_get_string(settings, "senderName");
 	context->output_started = false;
@@ -86,7 +86,7 @@ static void *win_spout_output_create(obs_data_t *settings, obs_output_t *output)
 
 static void win_spout_output_destroy(void *data)
 {
-	spout_output *context = (spout_output *)data;
+	auto *context = static_cast<spout_output *>(data);
 
 	if (!context) {
 		return;
@@ -104,7 +104,7 @@ static void win_spout_output_destroy(void *data)
 
 bool win_spout_output_start(void *data)
 {
-	spout_output *context = (spout_output *)data;
+	auto *context = static_cast<spout_output *>(data);
 
 	if (!context->output) {
 		blog(LOG_ERROR, "Trying to start with no output!");
@@ -120,11 +120,10 @@ bool win_spout_output_start(void *data)
 
 	pthread_mutex_unlock(&context->mutex);
 
-	int32_t width = (int32_t)obs_output_get_width(output);
-	int32_t height = (int32_t)obs_output_get_height(output);
+	const auto width = static_cast<int32_t>(obs_output_get_width(output));
+	const auto height = static_cast<int32_t>(obs_output_get_height(output));
 
-	video_t *video = obs_output_video(output);
-	if (!video) {
+	if (!obs_output_video(output)) {
 		blog(LOG_ERROR, "Trying to start with no video!");
 		return false;
 	}
@@ -142,7 +141,7 @@ bool win_spout_output_start(void *data)
 
 	obs_output_set_video_conversion(output, &info);
 
-	bool started = obs_output_begin_data_capture(output, 0);
+	const bool started = obs_output_begin_data_capture(output, 0);
 
 	pthread_mutex_lock(&context->mutex);
 
@@ -164,10 +163,10 @@ void win_spout_output_stop(void *data, uint64_t ts)
 {
 	UNUSED_PARAMETER(ts);
 
-	spout_output *context = (spout_output *)data;
+	auto *context = static_cast<spout_output *>(data);
 
 	pthread_mutex_lock(&context->mutex);
-	bool started = context->output_started;
+	const bool started = context->output_started;
 	obs_output_t *output = context->output;
 	pthread_mutex_unlock(&context->mutex);
 
@@ -183,9 +182,9 @@ void win_spout_output_stop(void *data, uint64_t ts)
 	}
 }
 
-void win_spout_output_rawvideo(void *data, struct video_data *frame)
+void win_spout_output_rawvideo(void *data, video_data *frame)
 {
-	spout_output *context = (spout_output *)data;
+	auto *context = static_cast<spout_output *>(data);
 
 	pthread_mutex_lock(&context->mutex);
 
@@ -198,8 +197,8 @@ void win_spout_output_rawvideo(void *data, struct video_data *frame)
 		return;
 	}
 
-	int32_t width = (int32_t)obs_output_get_width(output);
-	int32_t height = (int32_t)obs_output_get_height(output);
+	const auto width = static_cast<int32_t>(obs_output_get_width(output));
+	const auto height = static_cast<int32_t>(obs_output_get_height(output));
 
 	pthread_mutex_lock(&context->mutex);
 
@@ -220,9 +219,9 @@ obs_properties_t *win_spout_output_getproperties(void *data)
 	return props;
 }
 
-struct obs_output_info create_spout_output_info()
+obs_output_info create_spout_output_info()
 {
-	struct obs_output_info spout_output_info = {};
+	obs_output_info spout_output_info = {};
 
 	spout_output_info.id = "spout_output";
 	spout_output_info.flags = OBS_OUTPUT_VIDEO;

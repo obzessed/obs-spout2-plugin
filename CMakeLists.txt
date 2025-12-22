@@ -49,18 +49,17 @@ if(ENABLE_QT)
   )
 endif()
 
-target_sources(
-	${CMAKE_PROJECT_NAME}
-	PRIVATE 
-		source/win-spout.h
-		source/win-spout-config.h
-		source/ui/win-spout-output-settings.h
-		source/win-spout.cpp
-		source/win-spout-source.cpp
-		source/win-spout-output.cpp
-		source/win-spout-filter.cpp
-		source/win-spout-config.cpp
-		source/ui/win-spout-output-settings.cpp)
+file(GLOB_RECURSE PLUGIN_SOURCES
+	src/*.c
+	src/*.cc
+	src/*.cpp
+)
+# Exclude test executable from plugin sources
+list(FILTER PLUGIN_SOURCES EXCLUDE REGEX "test-.*\\.cpp$")
+list(FILTER PLUGIN_SOURCES EXCLUDE REGEX "test-.*\\.cc$")
+list(FILTER PLUGIN_SOURCES EXCLUDE REGEX "test-.*\\.c$")
+
+target_sources(${CMAKE_PROJECT_NAME} PRIVATE ${PLUGIN_SOURCES})
 
 set(INSTALLED_PLUGIN_BIN_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_PROJECT_NAME}/${CMAKE_INSTALL_BINDIR}/64bit")
 

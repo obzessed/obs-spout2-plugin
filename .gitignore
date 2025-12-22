@@ -44,7 +44,7 @@ build
 !/build-aux
 !/cmake
 !/data
-!/source
+!/src
 !.clang-format
 !.gersemirc
 !.gitignore

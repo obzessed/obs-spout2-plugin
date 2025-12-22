@@ -9,8 +9,6 @@
 
 #include <obs-module.h>
 #include <obs-frontend-api.h>
-#include <sys/stat.h>
-#include <QAction>
 #include <QMainWindow>
 
 #include "win-spout.h"
@@ -21,19 +19,19 @@ OBS_DECLARE_MODULE()
 OBS_MODULE_AUTHOR("Off World Live")
 OBS_MODULE_USE_DEFAULT_LOCALE("win-spout", "en-US")
 
-extern struct obs_source_info create_spout_source_info();
-struct obs_source_info spout_source_info;
+extern obs_source_info create_spout_source_info();
+obs_source_info spout_source_info;
 
-extern struct obs_output_info create_spout_output_info();
-struct obs_output_info spout_output_info;
+extern obs_output_info create_spout_output_info();
+obs_output_info spout_output_info;
 
-extern struct obs_source_info create_spout_filter_info();
-struct obs_source_info spout_filter_info;
+extern obs_source_info create_spout_filter_info();
+obs_source_info spout_filter_info;
 
 win_spout_output_settings *spout_output_settings;
 obs_output_t *win_spout_out;
 
-static void spout_obs_event(enum obs_frontend_event event, void *)
+static void on_obs_frontent_event(obs_frontend_event event, void *)
 {
 	if (event == OBS_FRONTEND_EVENT_EXIT) {
 		if (!win_spout_out) {
@@ -46,46 +44,51 @@ static void spout_obs_event(enum obs_frontend_event event, void *)
 	}
 }
 
-bool obs_module_load(void)
+bool obs_module_load()
 {
-	// load spout - source
+	// register input source type
 	spout_source_info = create_spout_source_info();
 	obs_register_source(&spout_source_info);
+	
+	// register filter source type
+	spout_filter_info = create_spout_filter_info();
+	obs_register_source(&spout_filter_info);
 
-	// load spout output
-	QMainWindow *main_window = (QMainWindow *)obs_frontend_get_main_window();
-
-	if (!main_window) {
-		blog(LOG_ERROR, "Can't get main window!");
-		return false;
-	}
-
-	win_spout_config *config = win_spout_config::get();
+	auto *config = win_spout_config::get();
 	config->load();
 
+	// register output type
 	spout_output_info = create_spout_output_info();
 	obs_register_output(&spout_output_info);
 
+	// create an output instance of our output type we registered above
 	obs_data_t *settings = obs_data_create();
-	win_spout_out = obs_output_create("spout_output", "OBS Spout Output", settings, NULL);
+	win_spout_out = obs_output_create("spout_output", "OBS Spout Output", settings, nullptr);
 	obs_data_release(settings);
 
-	QAction *menu_action = (QAction *)obs_frontend_add_tools_menu_qaction(obs_module_text("toolslabel"));
+	obs_frontend_add_event_callback(on_obs_frontent_event, nullptr);
 
-	obs_frontend_push_ui_translation(obs_module_get_string);
-	spout_output_settings = new win_spout_output_settings(main_window);
-	obs_frontend_pop_ui_translation();
+	// ui stuff
+	{
+		auto *main_window = static_cast<QMainWindow *>(obs_frontend_get_main_window());
+		if (!main_window) {
+			blog(LOG_ERROR, "Can't get main window!");
+			return false;
+		}
 
-	auto menu_cb = [] {
-		spout_output_settings->toggle_show_hide();
-	};
-	menu_action->connect(menu_action, &QAction::triggered, menu_cb);
+		const auto *menu_action = static_cast<QAction *>(
+		    obs_frontend_add_tools_menu_qaction(obs_module_text("toolslabel"))
+		);
 
-	obs_frontend_add_event_callback(spout_obs_event, nullptr);
+		obs_frontend_push_ui_translation(obs_module_get_string);
+		spout_output_settings = new win_spout_output_settings(main_window);
+		obs_frontend_pop_ui_translation();
 
-	// load spout filter
-	spout_filter_info = create_spout_filter_info();
-	obs_register_source(&spout_filter_info);
+		auto menu_cb = [] {
+			spout_output_settings->toggle_show_hide();
+		};
+		QAction::connect(menu_action, &QAction::triggered, menu_cb);
+	}
 
 	blog(LOG_INFO, "win-spout loaded!");
 

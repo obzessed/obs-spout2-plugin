@@ -10,8 +10,7 @@
 #include <obs-module.h>
 #include "win-spout.h"
 
-#include "SpoutLibrary.h"
-// #pragma comment(lib, "SpoutLibrary.lib")
+#include <SpoutLibrary.h>
 
 #define debug(message, ...) blog(LOG_DEBUG, "[%s] " message, obs_source_get_name(context->source), ##__VA_ARGS__)
 #define info(message, ...) blog(LOG_INFO, "[%s] " message, obs_source_get_name(context->source), ##__VA_ARGS__)
@@ -59,14 +58,14 @@ static bool win_spout_source_store_sender_info(spout_source *context)
 		return false;
 	}
 
-	context->width = width;
-	context->height = height;
+	context->width = static_cast<int>(width);
+	context->height = static_cast<int>(height);
 	return true;
 }
 
 static void win_spout_source_init(void *data, bool forced = false)
 {
-	struct spout_source *context = (spout_source *)data;
+	auto *context = static_cast<spout_source *>(data);
 	if (context->initialized) {
 		context->spout_status = 0;
 		return;
@@ -114,11 +113,10 @@ static void win_spout_source_init(void *data, bool forced = false)
 			return;
 		}
 	} else {
-		int index;
 		char senderName[256];
 		bool exists = false;
 		// then get the name of each sender from SPOUT
-		for (index = 0; index < totalSenders; index++) {
+		for (int index = 0; index < totalSenders; index++) {
 			context->spout_receiver_ptr->GetSender(index, senderName);
 			if (strcmp(senderName, context->senderName) == 0) {
 				exists = true;
@@ -131,9 +129,8 @@ static void win_spout_source_init(void *data, bool forced = false)
 				context->spout_status = -5;
 			}
 			return;
-		} else {
-			context->spout_status = 0;
 		}
+		context->spout_status = 0;
 	}
 
 	info("Getting info for sender %s", context->senderName);
@@ -145,7 +142,7 @@ static void win_spout_source_init(void *data, bool forced = false)
 
 	obs_enter_graphics();
 	gs_texture_destroy(context->texture);
-	context->texture = gs_texture_open_shared((uint32_t)(uintptr_t)context->dxHandle);
+	context->texture = gs_texture_open_shared(static_cast<uint32_t>(reinterpret_cast<uintptr_t>(context->dxHandle)));
 	obs_leave_graphics();
 
 	context->initialized = true;
@@ -153,7 +150,7 @@ static void win_spout_source_init(void *data, bool forced = false)
 
 static void win_spout_source_deinit(void *data)
 {
-	struct spout_source *context = (spout_source *)data;
+	auto *context = static_cast<spout_source *>(data);
 	context->initialized = false;
 	if (context->texture) {
 		obs_enter_graphics();
@@ -165,7 +162,7 @@ static void win_spout_source_deinit(void *data)
 
 static void win_spout_source_update(void *data, obs_data_t *settings)
 {
-	struct spout_source *context = (spout_source *)data;
+	auto *context = static_cast<spout_source *>(data);
 
 	auto selectedSender = obs_data_get_string(settings, SPOUT_SENDER_LIST);
 
@@ -195,11 +192,11 @@ static const char *win_spout_source_get_name(void *unused)
 	return obs_module_text("sourcename");
 }
 
-// Create our context struct which will be passed to each
+// Create our context which will be passed to each
 // of the plugin functions as void *data
 static void *win_spout_source_create(obs_data_t *settings, obs_source_t *source)
 {
-	struct spout_source *context = (spout_source *)bzalloc(sizeof(spout_source));
+	auto *context = static_cast<spout_source *>(bzalloc(sizeof(spout_source)));
 	info("initialising spout source");
 	context->spout_receiver_ptr = GetSpout();
 	context->source = source;
@@ -220,7 +217,7 @@ static void *win_spout_source_create(obs_data_t *settings, obs_source_t *source)
 
 static void win_spout_source_destroy(void *data)
 {
-	struct spout_source *context = (spout_source *)data;
+	auto *context = static_cast<spout_source *>(data);
 
 	win_spout_source_deinit(data);
 
@@ -250,21 +247,21 @@ static void win_spout_source_hide(void *data)
 
 static uint32_t win_spout_source_getwidth(void *data)
 {
-	struct spout_source *context = (spout_source *)data;
+	auto *context = static_cast<spout_source *>(data);
 	return context->width;
 }
 
 static uint32_t win_spout_source_getheight(void *data)
 {
-	struct spout_source *context = (spout_source *)data;
+	auto *context = static_cast<spout_source *>(data);
 	return context->height;
 }
 
 static void win_spout_source_render(void *data, gs_effect_t *effect)
 {
-	struct spout_source *context = (spout_source *)data;
+	auto *context = static_cast<spout_source *>(data);
 
-	// tried to initialise again
+	// tried to initialize again
 	// but failed, so we exit
 	if (!context->initialized) {
 		if (context->render_status != -1) {
@@ -326,9 +323,9 @@ static void win_spout_source_render(void *data, gs_effect_t *effect)
  */
 static bool win_spout_sender_has_changed(spout_source *context)
 {
-	DWORD oldFormat = context->dxFormat;
-	auto oldWidth = context->width;
-	auto oldHeight = context->height;
+	const DWORD oldFormat = context->dxFormat;
+	const auto oldWidth = context->width;
+	const auto oldHeight = context->height;
 
 	if (!win_spout_source_store_sender_info(context)) {
 		// assume that if it fails, it has changed
@@ -345,7 +342,7 @@ static void win_spout_source_tick(void *data, float seconds)
 {
 	UNUSED_PARAMETER(seconds);
 
-	struct spout_source *context = (spout_source *)data;
+	auto *context = static_cast<spout_source *>(data);
 
 	if (win_spout_sender_has_changed(context)) {
 		if (context->tick_status != -1) {
@@ -379,19 +376,18 @@ static void fill_senders(SPOUTHANDLE spoutptr, obs_property_t *list)
 	if (totalSenders == 0) {
 		return;
 	}
-	int index;
 	char senderName[256];
 	// then get the name of each sender from SPOUT
-	for (index = 0; index < totalSenders; index++) {
+	for (int index = 0; index < totalSenders; index++) {
 		spoutptr->GetSender(index, senderName);
 		obs_property_list_add_string(list, senderName, senderName);
 	}
 }
 
-// initialise the gui fields
+// initialize the gui fields
 static obs_properties_t *win_spout_properties(void *data)
 {
-	struct spout_source *context = (spout_source *)data;
+	auto *context = static_cast<spout_source *>(data);
 
 	obs_properties_t *props = obs_properties_create();
 
@@ -420,9 +416,9 @@ static obs_properties_t *win_spout_properties(void *data)
 	return props;
 }
 
-struct obs_source_info create_spout_source_info()
+obs_source_info create_spout_source_info()
 {
-	struct obs_source_info spout_source_info = {};
+	obs_source_info spout_source_info = {};
 	spout_source_info.id = "spout_capture";
 	spout_source_info.type = OBS_SOURCE_TYPE_INPUT;
 	spout_source_info.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW;

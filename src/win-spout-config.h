@@ -7,18 +7,16 @@
  * was used as guidance to working with the OBS Studio APIs
  */
 
-#ifndef WINSPOUTCONFIG_H
-#define WINSPOUTCONFIG_H
+#pragma once
 
 #include <QString>
-#include <obs-module.h>
 
 class win_spout_config {
 public:
 	win_spout_config();
 	static win_spout_config *get();
 	void load();
-	void save();
+	void save() const;
 
 	bool auto_start;
 	QString spout_output_name;
@@ -26,5 +24,3 @@ public:
 private:
 	static win_spout_config *_instance;
 };
-
-#endif // WINSPOUTCONFIG_H

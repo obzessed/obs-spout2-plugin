@@ -12,7 +12,7 @@
 #include <util/threading.h>
 #include <media-io/video-frame.h>
 
-#include "SpoutDX.h"
+#include <SpoutDX.h>
 
 #define FILTER_PROP_NAME "spout_filter_name"
 
@@ -44,7 +44,7 @@ struct win_spout_filter {
 void win_spout_filter_update(void *data, obs_data_t *settings);
 void win_spout_filter_destroy(void *data);
 
-bool init_on_render_thread(struct win_spout_filter *context)
+bool init_on_render_thread(win_spout_filter *context)
 {
 	if (context->is_initialised) {
 		return true;
@@ -61,7 +61,7 @@ bool init_on_render_thread(struct win_spout_filter *context)
 
 	// Get the OBS D3D11 device, rather than creating a new one for each filter.
 	// If this ends up causing deadlocks or perf issues, can revisit.
-	ID3D11Device *const d3d_device = (ID3D11Device *)gs_get_device_obj();
+	auto *const d3d_device = static_cast<ID3D11Device *>(gs_get_device_obj());
 
 	if (!d3d_device) {
 		blog(LOG_ERROR, "Failed to retrieve OBS d3d11 device");
@@ -88,7 +88,7 @@ const char *win_spout_filter_getname(void *unused)
 
 bool win_spout_filter_change_name(obs_properties_t *, obs_property_t *, void *data)
 {
-	struct win_spout_filter *context = (win_spout_filter *)data;
+	auto *context = static_cast<win_spout_filter *>(data);
 	obs_data_t *settings = obs_source_get_settings(context->source_context);
 	win_spout_filter_update(context, settings);
 	obs_data_release(settings);
@@ -115,7 +115,8 @@ void win_spout_offscreen_render(void *data, uint32_t cx, uint32_t cy)
 {
 	UNUSED_PARAMETER(cx);
 	UNUSED_PARAMETER(cy);
-	struct win_spout_filter *context = (win_spout_filter *)data;
+
+	auto *context = static_cast<win_spout_filter *>(data);
 
 	// We check if video_render has been called since the last offscreen_render
 	if (!context->is_active) {
@@ -144,17 +145,17 @@ void win_spout_offscreen_render(void *data, uint32_t cx, uint32_t cy)
 	if (!target)
 		return;
 
-	uint32_t width = obs_source_get_base_width(target);
-	uint32_t height = obs_source_get_base_height(target);
+	const uint32_t width = obs_source_get_base_width(target);
+	const uint32_t height = obs_source_get_base_height(target);
 
 	// Render the target to an intemediate format in sRGB-aware format
 	gs_texrender_reset(texrender_intermediate);
 	if (gs_texrender_begin(texrender_intermediate, width, height)) {
-		struct vec4 background;
+		vec4 background;
 		vec4_zero(&background);
 
 		gs_clear(GS_CLEAR_COLOR, &background, 0.0f, 0);
-		gs_ortho(0.0f, (float)width, 0.0f, (float)height, -100.0f, 100.0f);
+		gs_ortho(0.0f, static_cast<float>(width), 0.0f, static_cast<float>(height), -100.0f, 100.0f);
 
 		gs_blend_state_push();
 		gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
@@ -168,7 +169,7 @@ void win_spout_offscreen_render(void *data, uint32_t cx, uint32_t cy)
 	// Use the default effect to render it back into a format Spout accepts
 	gs_texrender_reset(texrender_curr);
 	if (gs_texrender_begin(texrender_curr, width, height)) {
-		struct vec4 background;
+		vec4 background;
 		vec4_zero(&background);
 
 		gs_clear(GS_CLEAR_COLOR, &background, 0.0f, 0);
@@ -179,8 +180,7 @@ void win_spout_offscreen_render(void *data, uint32_t cx, uint32_t cy)
 
 		// To get sRGB handling, render with the default effect
 		gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
-		gs_texture_t *tex = gs_texrender_get_texture(texrender_intermediate);
-		if (tex) {
+		if (gs_texture_t *tex = gs_texrender_get_texture(texrender_intermediate)) {
 			const bool linear_srgb = gs_get_linear_srgb();
 
 			const bool previous = gs_framebuffer_srgb_enabled();
@@ -206,7 +206,7 @@ void win_spout_offscreen_render(void *data, uint32_t cx, uint32_t cy)
 		gs_texture_t *prev_tex = gs_texrender_get_texture(texrender_prev);
 		ID3D11Texture2D *prev_tex_d3d11 = nullptr;
 		if (prev_tex) {
-			prev_tex_d3d11 = (ID3D11Texture2D *)gs_texture_get_obj(prev_tex);
+			prev_tex_d3d11 = static_cast<ID3D11Texture2D *>(gs_texture_get_obj(prev_tex));
 		}
 		pthread_mutex_lock(&context->mutex);
 
@@ -232,7 +232,8 @@ void win_spout_offscreen_render(void *data, uint32_t cx, uint32_t cy)
 void win_spout_filter_update(void *data, obs_data_t *settings)
 {
 	UNUSED_PARAMETER(settings);
-	struct win_spout_filter *context = (win_spout_filter *)data;
+
+	auto *context = static_cast<win_spout_filter *>(data);
 
 	obs_remove_main_render_callback(win_spout_offscreen_render, context);
 
@@ -251,7 +252,7 @@ void win_spout_filter_update(void *data, obs_data_t *settings)
 
 void *win_spout_filter_create(obs_data_t *settings, obs_source_t *source)
 {
-	struct win_spout_filter *context = (win_spout_filter *)bzalloc(sizeof(win_spout_filter));
+	auto *context = static_cast<win_spout_filter *>(bzalloc(sizeof(win_spout_filter)));
 	// Despite bzalloc I still want to at least initialise pointer fields
 	context->filter_sender = nullptr;
 	context->source_context = nullptr;
@@ -264,7 +265,7 @@ void *win_spout_filter_create(obs_data_t *settings, obs_source_t *source)
 	context->is_active = false;
 
 	pthread_mutex_init_value(&context->mutex);
-	if (pthread_mutex_init(&context->mutex, NULL) != 0) {
+	if (pthread_mutex_init(&context->mutex, nullptr) != 0) {
 		blog(LOG_ERROR, "Failed to create mutex for spout filter!");
 		win_spout_filter_destroy(context);
 		return nullptr;
@@ -284,8 +285,7 @@ void *win_spout_filter_create(obs_data_t *settings, obs_source_t *source)
 
 void win_spout_filter_destroy(void *data)
 {
-	struct win_spout_filter *context = (win_spout_filter *)data;
-
+	auto *context = static_cast<win_spout_filter *>(data);
 	if (!context) {
 		return;
 	}
@@ -327,13 +327,16 @@ void win_spout_filter_destroy(void *data)
 void win_spout_filter_tick(void *data, float seconds)
 {
 	UNUSED_PARAMETER(seconds);
-	struct win_spout_filter *context = (win_spout_filter *)data;
+	UNUSED_PARAMETER(data);
+
+	// win_spout_filter *context = (win_spout_filter *)data;
 }
 
-void win_spout_filter_videorender(void *data, gs_effect_t *effect)
+void win_spout_filter_video_render(void *data, gs_effect_t *effect)
 {
 	UNUSED_PARAMETER(effect);
-	struct win_spout_filter *context = (win_spout_filter *)data;
+
+	auto *context = static_cast<win_spout_filter *>(data);
 
 	pthread_mutex_lock(&context->mutex);
 
@@ -344,9 +347,9 @@ void win_spout_filter_videorender(void *data, gs_effect_t *effect)
 	obs_source_skip_video_filter(context->source_context);
 }
 
-struct obs_source_info create_spout_filter_info()
+obs_source_info create_spout_filter_info()
 {
-	struct obs_source_info win_spout_filter_info = {};
+	obs_source_info win_spout_filter_info = {};
 	win_spout_filter_info.id = "win_spout_filter";
 	win_spout_filter_info.type = OBS_SOURCE_TYPE_FILTER;
 	win_spout_filter_info.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_SRGB;
@@ -357,7 +360,7 @@ struct obs_source_info create_spout_filter_info()
 	win_spout_filter_info.destroy = win_spout_filter_destroy;
 	win_spout_filter_info.update = win_spout_filter_update;
 	win_spout_filter_info.video_tick = win_spout_filter_tick;
-	win_spout_filter_info.video_render = win_spout_filter_videorender;
+	win_spout_filter_info.video_render = win_spout_filter_video_render;
 
 	return win_spout_filter_info;
 }

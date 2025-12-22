@@ -20,9 +20,7 @@ win_spout_config *win_spout_config::_instance = nullptr;
 
 win_spout_config::win_spout_config() : auto_start(false), spout_output_name("OBS_Spout")
 {
-	config_t *obs_config = obs_frontend_get_user_config();
-
-	if (obs_config) {
+	if (config_t *obs_config = obs_frontend_get_user_config()) {
 		config_set_default_bool(obs_config, SECTION_NAME, PARAM_AUTO_START, auto_start);
 		config_set_default_string(obs_config, SECTION_NAME, PARAM_SPOUT_OUTPUT_NAME,
 					  spout_output_name.toUtf8().constData());
@@ -31,17 +29,15 @@ win_spout_config::win_spout_config() : auto_start(false), spout_output_name("OBS
 
 void win_spout_config::load()
 {
-	config_t *obs_config = obs_frontend_get_user_config();
-	if (obs_config) {
+	if (config_t *obs_config = obs_frontend_get_user_config()) {
 		auto_start = config_get_bool(obs_config, SECTION_NAME, PARAM_AUTO_START);
 		spout_output_name = config_get_string(obs_config, SECTION_NAME, PARAM_SPOUT_OUTPUT_NAME);
 	}
 }
 
-void win_spout_config::save()
+void win_spout_config::save() const
 {
-	config_t *obs_config = obs_frontend_get_user_config();
-	if (obs_config) {
+	if (config_t *obs_config = obs_frontend_get_user_config()) {
 		config_set_bool(obs_config, SECTION_NAME, PARAM_AUTO_START, auto_start);
 		config_set_string(obs_config, SECTION_NAME, PARAM_SPOUT_OUTPUT_NAME,
 				  spout_output_name.toUtf8().constData());
