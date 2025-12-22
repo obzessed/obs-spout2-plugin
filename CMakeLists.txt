@@ -9,31 +9,22 @@ endif()
 
 option(ENABLE_FRONTEND_API "Use obs-frontend-api for UI functionality" OFF)
 option(ENABLE_QT "Use Qt functionality" OFF)
+option(SPOUT_USE_SHARED "Link against shared Spout libraries instead of static" OFF)
 
 include(compilerconfig)
 include(defaults)
 include(helpers)
 
-#include(cpm)
-#
-#CPMAddPackage(
-#	NAME Spout2SDK
-#	GIT_REPOSITORY https://github.com/leadedge/Spout2.git
-#	VERSION 2.007.017
-#	DOWNLOAD_ONLY YES
-#)
-#
-#if (Spout2SDK_ADDED)
-#	# Spout2 SDK has no CMake support, so we create our own target
-#	FILE(GLOB Spout2SDK_sources ${Spout2SDK_SOURCE_DIR}/*.c)
-#	list(REMOVE_ITEM Spout2SDK_sources "${Spout2SDK_SOURCE_DIR}/lua.c" "${Spout2SDK_SOURCE_DIR}/luac.c")
-#	add_library(Spout2SDK STATIC ${Spout2SDK_sources})
-#
-#	target_include_directories(Spout2SDK
-#		PUBLIC
-#		$<BUILD_INTERFACE:${Spout2SDK_SOURCE_DIR}>
-#	)
-#endif()
+include(cpm)
+
+set(FETCHCONTENT_QUIET FALSE CACHE BOOL "Disable quiet mode for FetchContent" FORCE)
+
+CPMAddPackage(
+	URI "gh:leadedge/Spout2#2.007.017"
+	OPTIONS "SPOUT_BUILD_LIBRARY ON" "SPOUT_BUILD_SPOUTDX ON"
+	GIT_SHALLOW ON
+	GIT_PROGRESS TRUE
+)
 
 add_library(${CMAKE_PROJECT_NAME} MODULE)
 
@@ -58,12 +49,6 @@ if(ENABLE_QT)
   )
 endif()
 
-if(MSVC)
-	include_directories(deps/Spout2/SPOUTSDK/SpoutLibrary)
-	include_directories(deps/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX)
-	link_directories(deps/Spout2/BUILD/Binaries/x64)
-endif()
-
 target_sources(
 	${CMAKE_PROJECT_NAME}
 	PRIVATE 
@@ -77,73 +62,78 @@ target_sources(
 		source/win-spout-config.cpp
 		source/ui/win-spout-output-settings.cpp)
 
-set(SPOUT_BINARIES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/deps/Spout2/BUILD/Binaries/x64")
-set(SPOUTDX_LIB "${SPOUT_BINARIES_DIR}/SpoutDX.lib")
-set(SPOUTLIBRARY_LIB "${SPOUT_BINARIES_DIR}/SpoutLibrary.lib")
-
-target_link_libraries(
-	${CMAKE_PROJECT_NAME}
-	PRIVATE 
-		${SPOUTLIBRARY_LIB}
-		${SPOUTDX_LIB}
-		OBS::w32-pthreads
-	)
-
 set(INSTALLED_PLUGIN_BIN_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_PROJECT_NAME}/${CMAKE_INSTALL_BINDIR}/64bit")
-
-function(copy_spout_file)
-	add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E copy
-			"${SPOUT_BINARIES_DIR}/Spout.dll"
-			"${INSTALLED_PLUGIN_BIN_DIR}/Spout.dll"
-		COMMAND ${CMAKE_COMMAND} -E copy
-			"${SPOUT_BINARIES_DIR}/SpoutLibrary.dll"
-			"${INSTALLED_PLUGIN_BIN_DIR}/SpoutLibrary.dll"
-		COMMAND ${CMAKE_COMMAND} -E copy
-			"${SPOUT_BINARIES_DIR}/SpoutDX.dll"
-			"${INSTALLED_PLUGIN_BIN_DIR}/SpoutDX.dll"
-	)
-
-	if(EXISTS "${SPOUT_BINARIES_DIR}/Spout.pdb")
-		add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
-			COMMAND if $<CONFIG:Debug>==1(
-				"${CMAKE_COMMAND}" -E copy
-				"${SPOUT_BINARIES_DIR}/Spout.pdb"
-				"${INSTALLED_PLUGIN_BIN_DIR}/Spout.pdb")
-			COMMAND if $<CONFIG:RelWithDebInfo>==1(
-				"${CMAKE_COMMAND}" -E copy
-				"${SPOUT_BINARIES_DIR}/Spout.pdb"
-				"${INSTALLED_PLUGIN_BIN_DIR}/Spout.pdb")
-		)
-	endif()
-
-	if(EXISTS "${SPOUT_BINARIES_DIR}/SpoutLibrary.pdb")
-		add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
-			COMMAND if $<CONFIG:Debug>==1(
-				"${CMAKE_COMMAND}" -E copy
-				"${SPOUT_BINARIES_DIR}/SpoutLibrary.pdb"
-				"${INSTALLED_PLUGIN_BIN_DIR}/SpoutLibrary.pdb")
-			COMMAND if $<CONFIG:RelWithDebInfo>==1(
-				"${CMAKE_COMMAND}" -E copy
-				"${SPOUT_BINARIES_DIR}/SpoutLibrary.pdb"
-				"${INSTALLED_PLUGIN_BIN_DIR}/SpoutLibrary.pdb")
-		)
-	endif()
-
-	if(EXISTS "${SPOUT_BINARIES_DIR}/SpoutDX.pdb")
-		add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
-			COMMAND if $<CONFIG:Debug>==1(
-				"${CMAKE_COMMAND}" -E copy
-				"${SPOUT_BINARIES_DIR}/SpoutDX.pdb"
-				"${INSTALLED_PLUGIN_BIN_DIR}/SpoutDX.pdb")
-			COMMAND if $<CONFIG:RelWithDebInfo>==1(
-				"${CMAKE_COMMAND}" -E copy
-				"${SPOUT_BINARIES_DIR}/SpoutDX.pdb"
-				"${INSTALLED_PLUGIN_BIN_DIR}/SpoutDX.pdb")
-		)
-	endif()
-endfunction()
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
 
-copy_spout_file()
+# Spout2 includes from CPM package
+target_include_directories(
+	${CMAKE_PROJECT_NAME}
+	PRIVATE
+		"${Spout2_SOURCE_DIR}/SPOUTSDK/SpoutLibrary"
+		"${Spout2_SOURCE_DIR}/SPOUTSDK/SpoutDirectX/SpoutDX"
+)
+
+# Link against Spout2 libraries from CPM package
+if(SPOUT_USE_SHARED)
+	target_link_libraries(
+		${CMAKE_PROJECT_NAME}
+		PRIVATE
+			Spout
+			SpoutLibrary
+			SpoutDX
+			OBS::w32-pthreads
+	)
+
+	# Copy Spout DLLs to plugin bin dir after build
+	add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+			$<TARGET_FILE:Spout>
+			"${INSTALLED_PLUGIN_BIN_DIR}/$<TARGET_FILE_NAME:Spout>"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+			$<TARGET_FILE:SpoutDX>
+			"${INSTALLED_PLUGIN_BIN_DIR}/$<TARGET_FILE_NAME:SpoutDX>"
+	)
+
+	# Copy Spout PDBs to plugin bin dir after build (Debug/RelWithDebInfo only)
+	add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
+		COMMAND ${CMAKE_COMMAND}
+			"-DSRC_FILE=$<TARGET_PDB_FILE:Spout>"
+			"-DDST_DIR=${INSTALLED_PLUGIN_BIN_DIR}"
+			"-DCONFIG=$<CONFIG>"
+			-P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/copy_pdb.cmake"
+		COMMAND ${CMAKE_COMMAND}
+			"-DSRC_FILE=$<TARGET_PDB_FILE:SpoutDX>"
+			"-DDST_DIR=${INSTALLED_PLUGIN_BIN_DIR}"
+			"-DCONFIG=$<CONFIG>"
+			-P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/copy_pdb.cmake"
+	)
+
+	# Install Spout DLLs alongside the plugin
+	install(
+		FILES
+			$<TARGET_FILE:Spout>
+			$<TARGET_FILE:SpoutDX>
+		DESTINATION "${INSTALLED_PLUGIN_BIN_DIR}"
+	)
+
+	# Install Spout PDBs for Debug/RelWithDebInfo builds
+	install(
+		FILES
+			$<TARGET_PDB_FILE:Spout>
+			$<TARGET_PDB_FILE:SpoutDX>
+		DESTINATION "${INSTALLED_PLUGIN_BIN_DIR}"
+		CONFIGURATIONS Debug RelWithDebInfo
+		OPTIONAL
+	)
+else()
+	target_link_libraries(
+		${CMAKE_PROJECT_NAME}
+		PRIVATE
+			Spout_static
+			SpoutLibrary_static
+			SpoutDX_static
+			OBS::w32-pthreads
+	)
+endif()
+

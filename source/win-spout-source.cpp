@@ -11,7 +11,7 @@
 #include "win-spout.h"
 
 #include "SpoutLibrary.h"
-#pragma comment(lib, "SpoutLibrary.lib")
+// #pragma comment(lib, "SpoutLibrary.lib")
 
 #define debug(message, ...) blog(LOG_DEBUG, "[%s] " message, obs_source_get_name(context->source), ##__VA_ARGS__)
 #define info(message, ...) blog(LOG_INFO, "[%s] " message, obs_source_get_name(context->source), ##__VA_ARGS__)
