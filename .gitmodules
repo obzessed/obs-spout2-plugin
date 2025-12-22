@@ -1,3 +1,4 @@
 [submodule "deps/Spout2"]
 	path = deps/Spout2
 	url = https://github.com/leadedge/Spout2.git
+	shallow = true
