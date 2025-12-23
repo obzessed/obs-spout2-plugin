@@ -50,12 +50,12 @@ win_spout_output_settings::win_spout_output_settings(QWidget *parent)
 			canvasCombo->setEditable(true);
 			canvasCombo->setFocusPolicy(Qt::NoFocus);
 			canvasCombo->setStyleSheet(
-				"QComboBox { padding: 0px; background-color: #3b3b3b; border: 1px solid #555; border-radius: 4px; } QComboBox::drop-down { border: none; }");
+				"QComboBox { padding: 4px 6px; background-color: #3b3b3b; border: 1px solid #555; border-radius: 4px; } QComboBox::drop-down { border: none; }");
 
 			// Wrap in container for vertical centering
 			auto *comboContainer = new QWidget();
 			auto *comboLayout = new QHBoxLayout(comboContainer);
-			comboLayout->setContentsMargins(4, 2, 4, 2);
+			comboLayout->setContentsMargins(0, 0, 0, 0);
 			comboLayout->addWidget(canvasCombo);
 
 			// Add saved canvas name as item and set as current
@@ -85,15 +85,10 @@ win_spout_output_settings::win_spout_output_settings(QWidget *parent)
 				"QCheckBox { spacing: 0px; }"
 				"QCheckBox::indicator { width: 36px; height: 20px; }"
 				"QCheckBox::indicator:unchecked { "
-				"  background-color: #555; border-radius: 10px; "
-				"  image: none; "
+				"  image: url(:/spout/assets/icons/toggle-off.svg); "
 				"}"
 				"QCheckBox::indicator:checked { "
-				"  background-color: #4a90d9; border-radius: 10px; "
-				"  image: none; "
-				"}"
-				"QCheckBox::indicator:unchecked::after, QCheckBox::indicator:checked::after { "
-				"  content: ''; "
+				"  image: url(:/spout/assets/icons/toggle-on.svg); "
 				"}");
 			checkLayout->addWidget(checkBox);
 			tableWidget->setCellWidget(row, 2, checkWidget);
@@ -175,16 +170,17 @@ win_spout_output_settings::win_spout_output_settings(QWidget *parent)
 			// Wrap action button in container for vertical centering
 			auto *actionContainer = new QWidget();
 			auto *actionLayout = new QHBoxLayout(actionContainer);
-			actionLayout->setContentsMargins(4, 2, 4, 2);
+			actionLayout->setContentsMargins(0, 0, 0, 0);
 			actionLayout->addWidget(actionBtn);
 			tableWidget->setCellWidget(row, 3, actionContainer);
 			update_row_ui(row, isActive); // Initialize visual state
 
 			// Delete Button
-			auto *delBtn = new QPushButton("X");
+			auto *delBtn = new QPushButton();
+			delBtn->setIcon(QIcon(":/spout/assets/icons/trash-2.svg"));
 			delBtn->setFocusPolicy(Qt::NoFocus);
 			delBtn->setStyleSheet(
-				"QPushButton { color: #888; background: transparent; font-weight: bold; border: none; font-size: 12px; } QPushButton:hover { color: #ff5555; }");
+				"QPushButton { color: #888; background: transparent; border: none; } QPushButton:hover { color: #ff5555; }");
 			delBtn->setToolTip("Remove this output");
 
 			// Wrap delete button in container for vertical centering
@@ -315,20 +311,25 @@ void win_spout_output_settings::setupMultiCanvasUi()
 
 	// Apply stylesheet - removed hover styling to avoid confusion with selection
 	tableWidget->setStyleSheet(
-		"QTableWidget { border: none; background-color: #2b2b2b; color: #e0e0e0; }"
+		"QTableWidget { border: none; background-color: #2b2b2b; color: #e0e0e0; outline: none; }"
 		"QHeaderView::section { background-color: #3b3b3b; padding: 4px; border: none; font-weight: bold; }"
-		"QTableWidget::item { padding: 5px; }"
-		"QTableWidget::item:selected { background-color: #4a4a4a; }");
+		"QTableWidget::item { padding: 5px; outline: none; }"
+		"QTableWidget::item:selected { background-color: #4a4a4a; }"
+		"QTableWidget::item:focus { outline: none; border: none; }");
 
 	mainLayout->addWidget(tableWidget);
 
 	auto *btnLayout = new QHBoxLayout();
 	btnAddCanvas = new QPushButton("Add New Output", this);
+	btnAddCanvas->setIcon(QIcon(":/spout/assets/icons/plus.svg"));
 
 	// Bulk Actions
 	btnStartSelected = new QPushButton("Start All", this);
+	btnStartSelected->setIcon(QIcon(":/spout/assets/icons/play-circle.svg"));
 	btnStopSelected = new QPushButton("Stop All", this);
+	btnStopSelected->setIcon(QIcon(":/spout/assets/icons/stop-circle.svg"));
 	btnDeleteSelected = new QPushButton("Remove All", this);
+	btnDeleteSelected->setIcon(QIcon(":/spout/assets/icons/trash.svg"));
 
 	// Initial call
 	updateBulkButtonState();
@@ -338,19 +339,26 @@ void win_spout_output_settings::setupMultiCanvasUi()
 		&win_spout_output_settings::updateBulkButtonState);
 
 	// Unified button styling
-	QString baseStyle = "QPushButton { border-radius: 4px; padding: 6px 12px; font-weight: bold; }";
+	QString baseStyle = "QPushButton { border-radius: 4px; padding: 6px 14px; font-weight: 500; }";
 	QString addStyle =
 		baseStyle +
-		" QPushButton { background-color: #4a90d9; color: white; } QPushButton:hover { background-color: #3a7fc8; } QPushButton:disabled { background-color: #333; color: #666; border: 1px solid #444; }";
+		" QPushButton { background-color: #4a5568; color: #e2e8f0; } QPushButton:hover { background-color: #5a6578; color: white; } QPushButton:disabled { background-color: #333; color: #555; }";
 	QString startStyle =
 		baseStyle +
-		" QPushButton { background-color: #2e7d32; color: white; } QPushButton:hover { background-color: #1b5e20; } QPushButton:disabled { background-color: #555; color: #888; }";
+		" QPushButton { background-color: #2e7d32; color: white; } QPushButton:hover { background-color: #1b5e20; } QPushButton:disabled { background-color: #3a3a3a; color: #666; }";
 	QString stopStyle =
 		baseStyle +
-		" QPushButton { background-color: #c62828; color: white; } QPushButton:hover { background-color: #b71c1c; } QPushButton:disabled { background-color: #555; color: #888; }";
+		" QPushButton { background-color: #c62828; color: white; } QPushButton:hover { background-color: #b71c1c; } QPushButton:disabled { background-color: #3a3a3a; color: #666; }";
 	QString deleteStyle =
 		baseStyle +
-		" QPushButton { background-color: #444; color: white; } QPushButton:hover { background-color: #666; } QPushButton:disabled { background-color: #555; color: #888; }";
+		" QPushButton { background-color: #363636; color: #999; } QPushButton:hover { background-color: #444; color: #ccc; } QPushButton:disabled { background-color: #2a2a2a; color: #555; }";
+
+	// Set icon sizes
+	QSize iconSize(14, 14);
+	btnAddCanvas->setIconSize(iconSize);
+	btnStartSelected->setIconSize(iconSize);
+	btnStopSelected->setIconSize(iconSize);
+	btnDeleteSelected->setIconSize(iconSize);
 
 	btnAddCanvas->setStyleSheet(addStyle);
 	btnStartSelected->setStyleSheet(startStyle);
@@ -370,8 +378,11 @@ void win_spout_output_settings::setupMultiCanvasUi()
 
 	btnLayout->addWidget(btnAddCanvas);
 	btnLayout->addStretch();
+	btnLayout->addSpacing(8);
 	btnLayout->addWidget(btnStartSelected);
+	btnLayout->addSpacing(6);
 	btnLayout->addWidget(btnStopSelected);
+	btnLayout->addSpacing(6);
 	btnLayout->addWidget(btnDeleteSelected);
 
 	mainLayout->addLayout(btnLayout);
@@ -572,12 +583,12 @@ void win_spout_output_settings::add_canvas()
 	canvasCombo->setEditable(true);
 	canvasCombo->setFocusPolicy(Qt::NoFocus);
 	canvasCombo->setStyleSheet(
-		"QComboBox { padding: 0px; background-color: #3b3b3b; border: 1px solid #555; border-radius: 4px; } QComboBox::drop-down { border: none; }");
+		"QComboBox { padding: 4px 6px; background-color: #3b3b3b; border: 1px solid #555; border-radius: 4px; } QComboBox::drop-down { border: none; }");
 
 	// Wrap in container for vertical centering
 	auto *comboContainer = new QWidget();
 	auto *comboLayout = new QHBoxLayout(comboContainer);
-	comboLayout->setContentsMargins(4, 2, 4, 2);
+	comboLayout->setContentsMargins(0, 0, 0, 0);
 	comboLayout->addWidget(canvasCombo);
 
 	const std::vector<std::string> canvases = get_canvas_names();
@@ -631,12 +642,10 @@ void win_spout_output_settings::add_canvas()
 	checkBox->setStyleSheet("QCheckBox { spacing: 0px; }"
 				"QCheckBox::indicator { width: 36px; height: 20px; }"
 				"QCheckBox::indicator:unchecked { "
-				"  background-color: #555; border-radius: 10px; "
-				"  image: none; "
+				"  image: url(:/spout/assets/icons/toggle-off.svg); "
 				"}"
 				"QCheckBox::indicator:checked { "
-				"  background-color: #4a90d9; border-radius: 10px; "
-				"  image: none; "
+				"  image: url(:/spout/assets/icons/toggle-on.svg); "
 				"}");
 	checkLayout->addWidget(checkBox);
 	tableWidget->setCellWidget(row, 2, checkWidget);
@@ -705,16 +714,17 @@ void win_spout_output_settings::add_canvas()
 	// Wrap action button in container for vertical centering
 	auto *actionContainer = new QWidget();
 	auto *actionLayout = new QHBoxLayout(actionContainer);
-	actionLayout->setContentsMargins(4, 2, 4, 2);
+	actionLayout->setContentsMargins(0, 0, 0, 0);
 	actionLayout->addWidget(actionBtn);
 	tableWidget->setCellWidget(row, 3, actionContainer);
 	update_row_ui(row, false); // Initialize style
 
 	// Delete Button
-	auto *delBtn = new QPushButton("X");
+	auto *delBtn = new QPushButton();
+	delBtn->setIcon(QIcon(":/spout/assets/icons/trash-2.svg"));
 	delBtn->setFocusPolicy(Qt::NoFocus);
 	delBtn->setStyleSheet(
-		"QPushButton { color: #888; background: transparent; font-weight: bold; border: none; font-size: 12px; } QPushButton:hover { color: #ff5555; }");
+		"QPushButton { color: #888; background: transparent; border: none; } QPushButton:hover { color: #ff5555; }");
 	delBtn->setToolTip("Remove this output");
 
 	// Wrap delete button in container for vertical centering
@@ -746,6 +756,8 @@ void win_spout_output_settings::add_canvas()
 						}
 					}
 					tableWidget->removeRow(r);
+					updateBulkButtonState();
+					refreshAllCanvasComboboxes();
 					break;
 				}
 			}
