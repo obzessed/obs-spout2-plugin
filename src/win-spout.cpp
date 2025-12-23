@@ -17,19 +17,6 @@
 
 #include <map>
 #include <string>
-#include <obs.h> // Ensure we have access to LIBOBS_API_VER
-
-// Define version check macro if not available
-#ifndef MAKE_SEMANTIC_VERSION
-#define MAKE_SEMANTIC_VERSION(major, minor, patch) ((major << 24) | (minor << 16) | (patch))
-#endif
-
-// Check for Multi-Canvas Support (OBS >= 31.1.0)
-#if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(31, 1, 0)
-#define SUPPORTS_MULTI_CANVAS 1
-#else
-#define SUPPORTS_MULTI_CANVAS 0
-#endif
 
 // Global map for multi-canvas outputs
 static std::map<std::string, obs_output_t *> active_outputs;
@@ -50,9 +37,34 @@ obs_source_info spout_filter_info;
 win_spout_output_settings *spout_output_settings;
 obs_output_t *win_spout_out;
 
-static void on_obs_frontent_event(obs_frontend_event event, void *)
+static void on_obs_frontend_event(obs_frontend_event event, void *)
 {
-	if (event == OBS_FRONTEND_EVENT_EXIT) {
+	if (event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
+		// Auto-start outputs after OBS is fully loaded
+		auto *config = win_spout_config::get();
+#if SUPPORTS_MULTI_CANVAS
+		// Debug: Log available canvases
+		std::vector<std::string> availableCanvases = get_canvas_names();
+		blog(LOG_INFO, "OBS finished loading. Available canvases: %d", (int)availableCanvases.size());
+		for (const auto &name : availableCanvases) {
+			blog(LOG_INFO, "  Canvas: '%s'", name.c_str());
+		}
+		
+		for (const auto &[canvasName, spoutName, autoStart] : config->outputs) {
+			if (autoStart && !canvasName.isEmpty() && !spoutName.isEmpty()) {
+				blog(LOG_INFO, "Auto-starting Spout output: %s -> %s",
+				     canvasName.toUtf8().constData(), spoutName.toUtf8().constData());
+				spout_output_start(canvasName.toUtf8().constData(),
+						   spoutName.toUtf8().constData());
+			}
+		}
+#else
+		if (config->auto_start) {
+			blog(LOG_INFO, "Auto-starting legacy Spout output");
+			spout_output_start(config->spout_output_name.toUtf8().constData());
+		}
+#endif
+	} else if (event == OBS_FRONTEND_EVENT_EXIT) {
 #if SUPPORTS_MULTI_CANVAS
 		// Stop and release all multi-canvas outputs
 		for (auto &[key, output] : active_outputs) {
@@ -95,7 +107,7 @@ bool obs_module_load()
 	win_spout_out = obs_output_create("spout_output", "OBS Spout Output", settings, nullptr);
 	obs_data_release(settings);
 
-	obs_frontend_add_event_callback(on_obs_frontent_event, nullptr);
+	obs_frontend_add_event_callback(on_obs_frontend_event, nullptr);
 
 	// ui stuff
 	{
@@ -117,21 +129,6 @@ bool obs_module_load()
 		};
 		QAction::connect(menu_action, &QAction::triggered, menu_cb);
 	}
-
-#if SUPPORTS_MULTI_CANVAS
-	// Auto-start outputs that have autoStart enabled
-	for (const auto &[canvasName, spoutName, autoStart] : config->outputs) {
-		blog(LOG_INFO, "AutoStart Output: %s", canvasName.toUtf8().constData());
-		if (autoStart && !canvasName.isEmpty() && !spoutName.isEmpty()) {
-			spout_output_start(canvasName.toUtf8().constData(), spoutName.toUtf8().constData());
-		}
-	}
-#else
-	// Legacy auto-start
-	if (config->auto_start) {
-		spout_output_start(config->spout_output_name.toUtf8().constData());
-	}
-#endif
 
 	blog(LOG_INFO, "win-spout loaded!");
 
@@ -157,7 +154,7 @@ void obs_module_unload()
 		win_spout_out = nullptr;
 	}
 #endif
-	
+
 	blog(LOG_INFO, "win-spout unloaded!");
 }
 
@@ -205,6 +202,10 @@ void spout_output_start(const char *canvasName, const char *SpoutName)
 		obs_data_release(settings);
 		if (output) {
 			active_outputs[key] = output;
+			blog(LOG_INFO, "Created Spout output for canvas '%s' with sender '%s'", canvasName, SpoutName);
+		} else {
+			blog(LOG_ERROR, "Failed to create Spout output for canvas '%s'", canvasName);
+			return;
 		}
 	}
 
@@ -220,20 +221,21 @@ void spout_output_start(const char *canvasName, const char *SpoutName)
 		if (obs_canvas_t *canvas = obs_get_canvas_by_name(canvasName)) {
 			video = obs_canvas_get_video(canvas);
 			obs_canvas_release(canvas);
+			blog(LOG_INFO, "Found canvas '%s' by name", canvasName);
 		}
 
 		if (video) {
 			obs_output_set_media(output, video, obs_get_audio());
 		} else {
-			// Fallback to default video if canvas not found or name empty
+			blog(LOG_WARNING, "Video of Canvas '%s' is not setup, using default video", canvasName);
 			obs_output_set_media(output, obs_get_video(), obs_get_audio());
 		}
 
-		obs_output_start(output);
+		if (!obs_output_start(output)) {
+			blog(LOG_ERROR, "Failed to start Spout output for canvas '%s'", canvasName);
+		}
 	}
 #else
-	// Fallback for older API: just call legacy start if canvasName is empty or "Main" logic?
-	// Or ignore multi-canvas request.
 	(void)canvasName;
 	spout_output_start(SpoutName);
 #endif
@@ -243,7 +245,7 @@ void spout_output_stop(const char *canvasName)
 {
 #if SUPPORTS_MULTI_CANVAS
 	const std::string key = canvasName;
-	if (auto it = active_outputs.find(key); it != active_outputs.end()) {
+	if (const auto it = active_outputs.find(key); it != active_outputs.end()) {
 		obs_output_stop(it->second);
 		obs_output_release(it->second);
 		active_outputs.erase(it);
@@ -261,11 +263,43 @@ bool spout_output_is_active(const char *canvasName)
 	if (auto it = active_outputs.find(key); it != active_outputs.end()) {
 		return obs_output_active(it->second);
 	}
-#endif
 	return false;
+#else
+	(void)canvasName;
+	return win_spout_out && obs_output_active(win_spout_out);
+#endif
 }
 
-// Helper callback for enumeration
+#if SUPPORTS_MULTI_CANVAS
+// Helper struct for canvas search
+struct CanvasSearchData {
+	const char *searchName;
+	obs_canvas_t *foundCanvas;
+};
+
+// Helper callback for finding canvas by name via enumeration
+static bool find_canvas_proc(void *data, obs_canvas_t *canvas)
+{
+	auto *search = static_cast<CanvasSearchData *>(data);
+	if (const char *name = obs_canvas_get_name(canvas)) {
+		if (strcmp(name, search->searchName) == 0) {
+			search->foundCanvas = canvas;
+			// Don't release here - caller will use it
+			return false; // Stop enumeration
+		}
+	}
+	return true; // Continue enumeration
+}
+
+// Find canvas by enumeration (fallback when obs_get_canvas_by_name fails)
+static obs_canvas_t *find_canvas_by_enumeration(const char *canvasName)
+{
+	CanvasSearchData data = {canvasName, nullptr};
+	obs_enum_canvases(find_canvas_proc, &data);
+	return data.foundCanvas;
+}
+
+// Helper callback for getting canvas names
 static bool enum_canvases_proc(void *data, obs_canvas_t *canvas)
 {
 	auto *names = static_cast<std::vector<std::string> *>(data);
@@ -274,6 +308,7 @@ static bool enum_canvases_proc(void *data, obs_canvas_t *canvas)
 	}
 	return true;
 }
+#endif
 
 std::vector<std::string> get_canvas_names()
 {

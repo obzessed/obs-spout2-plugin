@@ -10,6 +10,19 @@
 #pragma once
 
 #include <QString>
+#include <obs.h>
+
+// Version check macro
+#ifndef MAKE_SEMANTIC_VERSION
+#define MAKE_SEMANTIC_VERSION(major, minor, patch) ((major << 24) | (minor << 16) | (patch))
+#endif
+
+// Multi-Canvas Support (OBS >= 31.1.0)
+#if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(31, 1, 0)
+#define SUPPORTS_MULTI_CANVAS 1
+#else
+#define SUPPORTS_MULTI_CANVAS 0
+#endif
 
 struct SpoutOutputConfig {
 	QString canvasName;

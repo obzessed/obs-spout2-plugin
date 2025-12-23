@@ -12,27 +12,15 @@
 #include <util/config-file.h>
 #include "../win-spout-config.h"
 #include "../win-spout.h"
-#include <obs.h> // For LIBOBS_API_VER
-
-// Define version check macro if not available
-#ifndef MAKE_SEMANTIC_VERSION
-#define MAKE_SEMANTIC_VERSION(major, minor, patch) ((major << 24) | (minor << 16) | (patch))
-#endif
-
-// Check for Multi-Canvas Support (OBS >= 31.1.0)
-// 31.1.0 in semantic versioning logic of OBS
-#if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(31, 1, 0)
-#define SUPPORTS_MULTI_CANVAS 1
-#else
-#define SUPPORTS_MULTI_CANVAS 0
-#endif
 
 #include <QHeaderView>
 #include <QMessageBox>
-#include <QSet> // Needed for multi-select logic
+#include <QSet>
 #include <QStyle>
 #include <QStandardItemModel>
 #include <QShowEvent>
+#include <QCloseEvent>
+#include <QHideEvent>
 
 win_spout_output_settings::win_spout_output_settings(QWidget *parent)
 	: QDialog(parent),
@@ -76,13 +64,12 @@ win_spout_output_settings::win_spout_output_settings(QWidget *parent)
 				canvasCombo->addItem(conf.canvasName);
 				canvasCombo->setCurrentIndex(0);
 			}
-			
+
 			tableWidget->setCellWidget(row, 0, comboContainer);
-			
+
 			// Connect combobox change to refresh all comboboxes
-			connect(canvasCombo, &QComboBox::currentTextChanged, this, [this]() {
-				refreshAllCanvasComboboxes();
-			});
+			connect(canvasCombo, &QComboBox::currentTextChanged, this,
+				[this]() { refreshAllCanvasComboboxes(); });
 
 			tableWidget->setItem(row, 1, new QTableWidgetItem(conf.spoutName));
 
@@ -107,8 +94,7 @@ win_spout_output_settings::win_spout_output_settings(QWidget *parent)
 				"}"
 				"QCheckBox::indicator:unchecked::after, QCheckBox::indicator:checked::after { "
 				"  content: ''; "
-				"}"
-			);
+				"}");
 			checkLayout->addWidget(checkBox);
 			tableWidget->setCellWidget(row, 2, checkWidget);
 
@@ -129,18 +115,21 @@ win_spout_output_settings::win_spout_output_settings(QWidget *parent)
 					int currentRow = -1;
 					for (int r = 0; r < tableWidget->rowCount(); ++r) {
 						QWidget *cellW = tableWidget->cellWidget(r, 3);
-						if (cellW && cellW->findChild<QPushButton*>() == actionBtn) {
+						if (cellW && cellW->findChild<QPushButton *>() == actionBtn) {
 							currentRow = r;
 							break;
 						}
 					}
-					if (currentRow < 0) return;
+					if (currentRow < 0)
+						return;
 
 					QString canvas = "";
 					QWidget *w = tableWidget->cellWidget(currentRow, 0);
-					QComboBox *cb = w ? w->findChild<QComboBox*>() : nullptr;
-					if (!cb) cb = qobject_cast<QComboBox*>(w);
-					if (cb) canvas = cb->currentText();
+					QComboBox *cb = w ? w->findChild<QComboBox *>() : nullptr;
+					if (!cb)
+						cb = qobject_cast<QComboBox *>(w);
+					if (cb)
+						canvas = cb->currentText();
 
 					QString spout = tableWidget->item(currentRow, 1)->text();
 
@@ -210,16 +199,19 @@ win_spout_output_settings::win_spout_output_settings(QWidget *parent)
 					// Find the row by looking for the container that holds this button
 					for (int r = 0; r < tableWidget->rowCount(); ++r) {
 						QWidget *cellW = tableWidget->cellWidget(r, 4);
-						if (cellW && cellW->findChild<QPushButton*>() == delBtn) {
+						if (cellW && cellW->findChild<QPushButton *>() == delBtn) {
 							// Found it - get canvas name
 							QWidget *w = tableWidget->cellWidget(r, 0);
 							QString canvas = "";
-							QComboBox *cb = w ? w->findChild<QComboBox*>() : nullptr;
-							if (!cb) cb = qobject_cast<QComboBox*>(w);
-							if (cb) canvas = cb->currentText();
-							
+							QComboBox *cb = w ? w->findChild<QComboBox *>() : nullptr;
+							if (!cb)
+								cb = qobject_cast<QComboBox *>(w);
+							if (cb)
+								canvas = cb->currentText();
+
 							// Stop if active
-							if (!canvas.isEmpty() && spout_output_is_active(canvas.toUtf8().constData())) {
+							if (!canvas.isEmpty() &&
+							    spout_output_is_active(canvas.toUtf8().constData())) {
 								spout_output_stop(canvas.toUtf8().constData());
 							}
 
@@ -230,7 +222,7 @@ win_spout_output_settings::win_spout_output_settings(QWidget *parent)
 					}
 				}
 			});
-		tableWidget->setCellWidget(row, 4, delContainer);
+			tableWidget->setCellWidget(row, 4, delContainer);
 		}
 	}
 
@@ -396,8 +388,9 @@ void win_spout_output_settings::save_settings() const
 			SpoutOutputConfig item;
 
 			QWidget *w = tableWidget->cellWidget(i, 0);
-			QComboBox *cb = w ? w->findChild<QComboBox*>() : nullptr;
-			if (!cb) cb = qobject_cast<QComboBox*>(w);
+			QComboBox *cb = w ? w->findChild<QComboBox *>() : nullptr;
+			if (!cb)
+				cb = qobject_cast<QComboBox *>(w);
 			if (cb) {
 				item.canvasName = cb->currentText();
 			} else {
@@ -515,7 +508,7 @@ void win_spout_output_settings::showEvent(QShowEvent *event)
 		for (const auto &name : currentCanvases) {
 			combo->addItem(QString::fromStdString(name));
 		}
-		
+
 		// If saved selection isn't in the list, add it (for backward compatibility)
 		if (!currentSelection.isEmpty() && combo->findText(currentSelection) == -1) {
 			combo->addItem(currentSelection);
@@ -556,11 +549,11 @@ void win_spout_output_settings::showEvent(QShowEvent *event)
 	// Refresh disabled states and button states
 	refreshAllCanvasComboboxes();
 	updateBulkButtonState();
-	
+
 	// Update UI to reflect actual running state for all rows
 	for (int r = 0; r < tableWidget->rowCount(); ++r) {
 		QWidget *w = tableWidget->cellWidget(r, 0);
-		QComboBox *cb = w ? w->findChild<QComboBox*>() : nullptr;
+		QComboBox *cb = w ? w->findChild<QComboBox *>() : nullptr;
 		if (cb) {
 			bool active = spout_output_is_active(cb->currentText().toUtf8().constData());
 			update_row_ui(r, active);
@@ -635,18 +628,16 @@ void win_spout_output_settings::add_canvas()
 	checkLayout->setAlignment(Qt::AlignCenter);
 	auto *checkBox = new QCheckBox();
 	checkBox->setFocusPolicy(Qt::NoFocus);
-	checkBox->setStyleSheet(
-		"QCheckBox { spacing: 0px; }"
-		"QCheckBox::indicator { width: 36px; height: 20px; }"
-		"QCheckBox::indicator:unchecked { "
-		"  background-color: #555; border-radius: 10px; "
-		"  image: none; "
-		"}"
-		"QCheckBox::indicator:checked { "
-		"  background-color: #4a90d9; border-radius: 10px; "
-		"  image: none; "
-		"}"
-	);
+	checkBox->setStyleSheet("QCheckBox { spacing: 0px; }"
+				"QCheckBox::indicator { width: 36px; height: 20px; }"
+				"QCheckBox::indicator:unchecked { "
+				"  background-color: #555; border-radius: 10px; "
+				"  image: none; "
+				"}"
+				"QCheckBox::indicator:checked { "
+				"  background-color: #4a90d9; border-radius: 10px; "
+				"  image: none; "
+				"}");
 	checkLayout->addWidget(checkBox);
 	tableWidget->setCellWidget(row, 2, checkWidget);
 
@@ -849,11 +840,12 @@ void win_spout_output_settings::update_row_ui(int row, bool active) const
 			senderItem->setFlags(senderItem->flags() | Qt::ItemIsEditable);
 		}
 	}
-	
+
 	// Disable canvas combobox when output is active
 	if (QWidget *canvasWidget = tableWidget->cellWidget(row, 0)) {
-		auto *canvasCombo = canvasWidget->findChild<QComboBox*>();
-		if (!canvasCombo) canvasCombo = qobject_cast<QComboBox*>(canvasWidget);
+		auto *canvasCombo = canvasWidget->findChild<QComboBox *>();
+		if (!canvasCombo)
+			canvasCombo = qobject_cast<QComboBox *>(canvasWidget);
 		if (canvasCombo) {
 			canvasCombo->setEnabled(!active);
 		}
@@ -976,9 +968,11 @@ void win_spout_output_settings::on_start_selected() const
 		// Retrieve info
 		QString canvas = "";
 		QWidget *w = tableWidget->cellWidget(row, 0);
-		QComboBox *cb = w ? w->findChild<QComboBox*>() : nullptr;
-		if (!cb) cb = qobject_cast<QComboBox*>(w);
-		if (cb) canvas = cb->currentText();
+		QComboBox *cb = w ? w->findChild<QComboBox *>() : nullptr;
+		if (!cb)
+			cb = qobject_cast<QComboBox *>(w);
+		if (cb)
+			canvas = cb->currentText();
 		QString spout = tableWidget->item(row, 1)->text();
 
 		if (canvas.isEmpty())
@@ -1028,9 +1022,11 @@ void win_spout_output_settings::on_stop_selected()
 	for (int row : rows) {
 		QString canvas = "";
 		if (QWidget *w = tableWidget->cellWidget(row, 0)) {
-			auto *cb = w->findChild<QComboBox*>();
-			if (!cb) cb = qobject_cast<QComboBox*>(w);
-			if (cb) canvas = cb->currentText();
+			auto *cb = w->findChild<QComboBox *>();
+			if (!cb)
+				cb = qobject_cast<QComboBox *>(w);
+			if (cb)
+				canvas = cb->currentText();
 		}
 		if (spout_output_is_active(canvas.toUtf8().constData())) {
 			anyActive = true;
@@ -1050,9 +1046,11 @@ void win_spout_output_settings::on_stop_selected()
 	for (int row : rows) {
 		QString canvas = "";
 		QWidget *w = tableWidget->cellWidget(row, 0);
-		QComboBox *cb = w ? w->findChild<QComboBox*>() : nullptr;
-		if (!cb) cb = qobject_cast<QComboBox*>(w);
-		if (cb) canvas = cb->currentText();
+		QComboBox *cb = w ? w->findChild<QComboBox *>() : nullptr;
+		if (!cb)
+			cb = qobject_cast<QComboBox *>(w);
+		if (cb)
+			canvas = cb->currentText();
 
 		if (canvas.isEmpty())
 			continue;
@@ -1094,9 +1092,11 @@ void win_spout_output_settings::on_delete_selected()
 	for (int row : rows) {
 		QString canvas = "";
 		if (QWidget *w = tableWidget->cellWidget(row, 0)) {
-			auto *cb = w->findChild<QComboBox*>();
-			if (!cb) cb = qobject_cast<QComboBox*>(w);
-			if (cb) canvas = cb->currentText();
+			auto *cb = w->findChild<QComboBox *>();
+			if (!cb)
+				cb = qobject_cast<QComboBox *>(w);
+			if (cb)
+				canvas = cb->currentText();
 		}
 		if (spout_output_is_active(canvas.toUtf8().constData())) {
 			anyActive = true;
@@ -1121,9 +1121,11 @@ void win_spout_output_settings::on_delete_selected()
 	for (int row : sortedRows) {
 		QString canvas = "";
 		if (QWidget *w = tableWidget->cellWidget(row, 0)) {
-			auto *cb = w->findChild<QComboBox*>();
-			if (!cb) cb = qobject_cast<QComboBox*>(w);
-			if (cb) canvas = cb->currentText();
+			auto *cb = w->findChild<QComboBox *>();
+			if (!cb)
+				cb = qobject_cast<QComboBox *>(w);
+			if (cb)
+				canvas = cb->currentText();
 		}
 
 		if (!canvas.isEmpty() && spout_output_is_active(canvas.toUtf8().constData())) {
