@@ -11,5 +11,13 @@
 
 #define blog(log_level, message, ...) blog(log_level, "[win_spout] " message, ##__VA_ARGS__)
 
-void spout_output_start(const char *SpoutName);
-void spout_output_stop();
+#include <vector>
+#include <string>
+
+extern void spout_output_start(const char *SpoutName);
+extern void spout_output_stop();
+
+extern void spout_output_start(const char *canvasName, const char *SpoutName);
+extern void spout_output_stop(const char *canvasName);
+extern bool spout_output_is_active(const char *canvasName);
+extern std::vector<std::string> get_canvas_names();

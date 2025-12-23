@@ -11,7 +11,14 @@
 #define WINSPOUTOUTSETTINGS_H
 
 #include <QDialog>
-#include "ui_win-spout-output-settings.h"
+#include <QLineEdit>
+#include <QCheckBox>
+#include <QPushButton>
+#include <QLabel>
+#include <QTableWidget>
+#include <QComboBox>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
 
 class win_spout_output_settings : public QDialog {
 	Q_OBJECT
@@ -19,17 +26,46 @@ class win_spout_output_settings : public QDialog {
 public:
 	explicit win_spout_output_settings(QWidget *parent = 0);
 	~win_spout_output_settings();
-	void set_started_button_state(bool started);
-	void close_event(QCloseEvent *event);
+	void set_started_button_state(bool started) const;
 	void toggle_show_hide();
 
+protected:
+	void showEvent(QShowEvent *event) override;
+	void closeEvent(QCloseEvent *event) override;
+	void hideEvent(QHideEvent *event) override;
+
 private Q_SLOTS:
-	void on_start();
-	void on_stop();
+	void on_start() const;
+	void on_stop() const;
+	void add_canvas();
+	void remove_canvas() const;
+	void on_start_selected() const;
+	void on_stop_selected();
+	void on_delete_selected();
 
 private:
-	Ui::win_spout_output_settings *ui;
-	void save_settings();
-};
+	void save_settings() const;
+	void setupUi();
+	void setupLegacyUi();
+	void setupMultiCanvasUi();
+	void update_row_ui(int row, bool active) const;
+	void updateBulkButtonState() const;
+	bool isCanvasInUse(const QString &canvasName, int excludeRow = -1) const;
+	void refreshAllCanvasComboboxes() const;
+	bool isSenderNameInUse(const QString &senderName, int excludeRow = -1) const;
 
+	// Legacy Widgets
+	QLineEdit *lineEdit_spoutname;
+	QCheckBox *checkBox_auto;
+	QPushButton *pushButton_start;
+	QPushButton *pushButton_stop;
+
+	// Multi-Canvas Widgets
+	QTableWidget *tableWidget;
+	QPushButton *btnAddCanvas;
+	QPushButton *btnRemoveCanvas;
+	QPushButton *btnStartSelected;
+	QPushButton *btnStopSelected;
+	QPushButton *btnDeleteSelected;
+};
 #endif // WINSPOUTOUTSETTINGS_H

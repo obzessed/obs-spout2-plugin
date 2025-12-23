@@ -136,3 +136,28 @@ else()
 	)
 endif()
 
+# ============================================================================
+# Deploy to OBS plugins directory (based on OBS_PLUGINS_DIR env var)
+# ============================================================================
+if(DEFINED ENV{OBS_PLUGINS_DIR})
+	set(OBS_PLUGINS_DIR $ENV{OBS_PLUGINS_DIR})
+	message(STATUS "OBS_PLUGINS_DIR: ${OBS_PLUGINS_DIR}")
+
+	add_custom_command(
+		TARGET ${CMAKE_PROJECT_NAME}
+		POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${OBS_PLUGINS_DIR}"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:${CMAKE_PROJECT_NAME}>" "${OBS_PLUGINS_DIR}"
+		COMMENT "Deploying plugin to OBS plugins directory: ${OBS_PLUGINS_DIR}"
+	)
+
+	# Copy plugin PDB if it exists
+	add_custom_command(
+		TARGET ${CMAKE_PROJECT_NAME}
+		POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_PDB_FILE:${CMAKE_PROJECT_NAME}>" "${OBS_PLUGINS_DIR}"
+		COMMENT "Deploying plugin PDB to OBS plugins directory"
+	)
+else()
+	message(STATUS "OBS_PLUGINS_DIR not set - skipping deployment to OBS")
+endif()

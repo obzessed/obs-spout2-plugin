@@ -11,6 +11,12 @@
 
 #include <QString>
 
+struct SpoutOutputConfig {
+	QString canvasName;
+	QString spoutName;
+	bool autoStart = false;
+};
+
 class win_spout_config {
 public:
 	win_spout_config();
@@ -20,6 +26,8 @@ public:
 
 	bool auto_start;
 	QString spout_output_name;
+
+	QList<SpoutOutputConfig> outputs;
 
 private:
 	static win_spout_config *_instance;
