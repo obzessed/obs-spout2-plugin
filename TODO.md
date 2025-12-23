@@ -1,0 +1,1 @@
+- [ ] track canvas remove or change and update.

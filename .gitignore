@@ -52,6 +52,7 @@ build
 !CMakeLists.txt
 !CMakePresets.json
 !LICENSE
+!TODO.md
 !README.md
 
 # Exclude lock files
