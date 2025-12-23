@@ -10,6 +10,7 @@
 #include <obs-module.h>
 #include <obs-frontend-api.h>
 #include <QMainWindow>
+#include <QMessageBox>
 
 #include "win-spout.h"
 #include "ui/win-spout-output-settings.h"
@@ -226,13 +227,26 @@ void spout_output_start(const char *canvasName, const char *SpoutName)
 
 		if (video) {
 			obs_output_set_media(output, video, obs_get_audio());
+			
+			if (!obs_output_start(output)) {
+				blog(LOG_ERROR, "Failed to start Spout output for canvas '%s'", canvasName);
+				QMessageBox::critical(nullptr, "Spout Output Error",
+					QString("Failed to start Spout output for canvas '%1'.\n\n"
+						"The output could not be started.")
+					.arg(canvasName));
+			}
 		} else {
-			blog(LOG_WARNING, "Video of Canvas '%s' is not setup, using default video", canvasName);
-			obs_output_set_media(output, obs_get_video(), obs_get_audio());
-		}
-
-		if (!obs_output_start(output)) {
-			blog(LOG_ERROR, "Failed to start Spout output for canvas '%s'", canvasName);
+			blog(LOG_ERROR, "Canvas '%s' not found or has no video", canvasName);
+			QMessageBox::critical(nullptr, "Spout Output Error",
+				QString("Cannot start Spout output for canvas '%1'.\n\n"
+					"The canvas was not found or its video is not available.\n"
+					"Please check that the canvas exists and is properly configured.")
+				.arg(canvasName));
+			
+			// Clean up the output we created since we can't use it
+			obs_output_release(output);
+			active_outputs.erase(key);
+			return;
 		}
 	}
 #else
