@@ -36,7 +36,10 @@ extern obs_source_info create_spout_filter_info();
 obs_source_info spout_filter_info;
 
 win_spout_output_settings *spout_output_settings;
+
+#if !SUPPORTS_MULTI_CANVAS
 obs_output_t *win_spout_out;
+#endif
 
 static void on_obs_frontend_event(obs_frontend_event event, void *)
 {
@@ -103,10 +106,12 @@ bool obs_module_load()
 	spout_output_info = create_spout_output_info();
 	obs_register_output(&spout_output_info);
 
+#if !SUPPORTS_MULTI_CANVAS
 	// create an output instance of our output type we registered above
 	obs_data_t *settings = obs_data_create();
 	win_spout_out = obs_output_create("spout_output", "OBS Spout Output", settings, nullptr);
 	obs_data_release(settings);
+#endif
 
 	obs_frontend_add_event_callback(on_obs_frontend_event, nullptr);
 
@@ -171,6 +176,7 @@ const char *obs_module_description()
 
 void spout_output_start(const char *SpoutName)
 {
+#if !SUPPORTS_MULTI_CANVAS
 	// Legacy Single Output Implementation
 	if (win_spout_out) {
 		obs_data_t *settings = obs_output_get_settings(win_spout_out);
@@ -179,14 +185,17 @@ void spout_output_start(const char *SpoutName)
 		obs_data_release(settings);
 		obs_output_start(win_spout_out);
 	}
+#endif
 }
 
 void spout_output_stop()
 {
+#if !SUPPORTS_MULTI_CANVAS
 	// Legacy Single Output Implementation
 	if (win_spout_out) {
 		obs_output_stop(win_spout_out);
 	}
+#endif
 }
 
 void spout_output_start(const char *canvasName, const char *SpoutName)

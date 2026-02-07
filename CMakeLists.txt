@@ -161,6 +161,17 @@ if(DEFINED ENV{OBS_PLUGINS_DIR})
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_PDB_FILE:${CMAKE_PROJECT_NAME}>" "${OBS_PLUGINS_DIR}"
 		COMMENT "Deploying plugin PDB to OBS plugins directory"
 	)
+
+	set(PLUGINS_DATA_DIR "${OBS_PLUGINS_DIR}/../../data/obs-plugins")
+
+	# Copy data folder to OBS plugins directory (in subfolder named after the plugin)
+	add_custom_command(
+		TARGET ${CMAKE_PROJECT_NAME}
+		POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${PLUGINS_DATA_DIR}/${CMAKE_PROJECT_NAME}"
+		COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/data" "${PLUGINS_DATA_DIR}/${CMAKE_PROJECT_NAME}"
+		COMMENT "Deploying plugin data folder to: ${PLUGINS_DATA_DIR}/${CMAKE_PROJECT_NAME}"
+	)
 else()
 	message(STATUS "OBS_PLUGINS_DIR not set - skipping deployment to OBS")
 endif()

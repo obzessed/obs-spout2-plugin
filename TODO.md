@@ -1,1 +1,2 @@
 - [ ] track canvas remove or change and update.
+- [ ] use a source release of SpoutSDK for quick dependency downloads.
