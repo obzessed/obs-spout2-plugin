@@ -46,28 +46,36 @@ static void on_obs_frontend_event(obs_frontend_event event, void *)
 	if (event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
 		// Auto-start outputs after OBS is fully loaded
 		auto *config = win_spout_config::get();
+
+		const auto main_window = static_cast<QMainWindow *>(obs_frontend_get_main_window());
+		QMetaObject::invokeMethod(
+			main_window,
+			[config] {
 #if SUPPORTS_MULTI_CANVAS
-		// Debug: Log available canvases
-		std::vector<std::string> availableCanvases = get_canvas_names();
-		blog(LOG_INFO, "OBS finished loading. Available canvases: %d", (int)availableCanvases.size());
-		for (const auto &name : availableCanvases) {
-			blog(LOG_INFO, "  Canvas: '%s'", name.c_str());
-		}
-		
-		for (const auto &[canvasName, spoutName, autoStart] : config->outputs) {
-			if (autoStart && !canvasName.isEmpty() && !spoutName.isEmpty()) {
-				blog(LOG_INFO, "Auto-starting Spout output: %s -> %s",
-				     canvasName.toUtf8().constData(), spoutName.toUtf8().constData());
-				spout_output_start(canvasName.toUtf8().constData(),
-						   spoutName.toUtf8().constData());
-			}
-		}
+				// Debug: Log available canvases
+				std::vector<std::string> availableCanvases = get_canvas_names();
+				blog(LOG_INFO, "OBS finished loading. Available canvases: %d", static_cast<int>(availableCanvases.size()));
+				for (const auto &name : availableCanvases) {
+					blog(LOG_INFO, "  Canvas: '%s'", name.c_str());
+				}
+
+				for (const auto &[canvasName, spoutName, autoStart] : config->outputs) {
+					if (autoStart && !canvasName.isEmpty() && !spoutName.isEmpty()) {
+						blog(LOG_INFO, "Auto-starting Spout output: %s -> %s",
+						     canvasName.toUtf8().constData(), spoutName.toUtf8().constData());
+						spout_output_start(canvasName.toUtf8().constData(),
+								   spoutName.toUtf8().constData());
+					}
+				}
 #else
-		if (config->auto_start) {
-			blog(LOG_INFO, "Auto-starting legacy Spout output");
-			spout_output_start(config->spout_output_name.toUtf8().constData());
-		}
+				if (config->auto_start) {
+					blog(LOG_INFO, "Auto-starting legacy Spout output");
+					spout_output_start(config->spout_output_name.toUtf8().constData());
+				}
 #endif
+			},
+			Qt::QueuedConnection
+		);
 	} else if (event == OBS_FRONTEND_EVENT_EXIT) {
 #if SUPPORTS_MULTI_CANVAS
 		// Stop and release all multi-canvas outputs
